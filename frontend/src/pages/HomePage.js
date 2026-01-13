@@ -4,17 +4,15 @@ import {
   Container,
   Flex,
   Text,
-  Input,
   HStack,
   VStack,
   Image,
   Icon,
   IconButton,
-  Badge,
   Heading,
+  Button,
 } from '@chakra-ui/react';
 import { 
-  FiSearch, 
   FiMapPin, 
   FiHeart,
   FiHome,
@@ -22,11 +20,31 @@ import {
 } from 'react-icons/fi';
 import { MdVilla, MdCabin } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
+import { useDSS } from '../contexts/DSSContext';
+import LocationSearchInput from '../components/LocationSearchInput';
 import { BRAND_PRIMARY, BRAND_HOVER, BRAND_LIGHT } from '../constants/colors';
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const { updateSearchParams } = useDSS();
   const [favorites, setFavorites] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+
+  const handleLocationSelect = (location) => {
+    console.log('Location selected:', location);
+    setSelectedLocation(location);
+    
+    // Update search params in DSS context
+    updateSearchParams({
+      location: location.description,
+      lat: location.lat,
+      lng: location.lng,
+      city: location.city || 'New York',
+    });
+    
+    // Navigate to search page
+    navigate('/search');
+  };
 
   const categories = [
     { name: 'Homestay', icon: FiHome, color: BRAND_PRIMARY },
@@ -108,24 +126,48 @@ const HomePage = () => {
       </Box>
 
       <Container maxW="container.xl" py={6}>
-        {/* Floating Search Bar */}
-        <Box mb={8} position="relative" onClick={() => navigate('/search')}>
-          <Box position="absolute" left="12px" top="50%" transform="translateY(-50%)" zIndex={1} pointerEvents="none">
-            <Icon as={FiSearch} color="gray.400" />
-          </Box>
-          <Input
-            placeholder="Bạn muốn đi đâu?"
-            size="lg"
-            pl="40px"
-            bg="gray.50"
-            border="1px"
-            borderColor="gray.200"
-            borderRadius="12px"
-            _hover={{ bg: 'gray.100', cursor: 'pointer' }}
-            _focus={{ bg: 'white', borderColor: BRAND_PRIMARY }}
-            fontSize="md"
-            readOnly
-          />
+        {/* Floating Search Bar with Google Places */}
+        <Box mb={8}>
+          <VStack spacing={3} align="stretch">
+            <LocationSearchInput
+              onLocationSelect={handleLocationSelect}
+              placeholder="Tìm kiếm địa điểm ở New York..."
+              defaultValue={selectedLocation?.description}
+            />
+            
+            {selectedLocation && (
+              <Box
+                p={3}
+                bg="blue.50"
+                borderRadius="10px"
+                border="1px solid"
+                borderColor="blue.200"
+              >
+                <Flex justify="space-between" align="center">
+                  <HStack>
+                    <Icon as={FiMapPin} color="blue.600" />
+                    <VStack align="start" spacing={0}>
+                      <Text fontSize="sm" fontWeight="600" color="blue.800">
+                        {selectedLocation.description}
+                      </Text>
+                      <Text fontSize="xs" color="blue.600">
+                        {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
+                      </Text>
+                    </VStack>
+                  </HStack>
+                  <Button
+                    size="sm"
+                    bg={BRAND_PRIMARY}
+                    color="white"
+                    _hover={{ bg: BRAND_HOVER }}
+                    onClick={() => navigate('/search')}
+                  >
+                    Tìm phòng →
+                  </Button>
+                </Flex>
+              </Box>
+            )}
+          </VStack>
         </Box>
 
         {/* Categories */}
