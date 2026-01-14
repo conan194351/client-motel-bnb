@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 from .models import (
     RecommendationRequest, RecommendationResponse, RecommendationResult,
-    RoomSummary, WeightExplanation, HealthResponse, StatsResponse
+    RoomSummary, WeightExplanation, HealthResponse, StatsResponse, UserLocation
 )
 from .database import Database, get_db_connection, test_connection
 from ..services.influence_engine import InfluenceEngine
@@ -160,13 +160,15 @@ async def get_statistics():
 @app.post("/api/v1/dss/recommend", response_model=RecommendationResponse, tags=["Recommendations"])
 async def get_recommendations(request: RecommendationRequest):
     """
-    Main recommendation endpoint using Influence Diagram + TOPSIS
+    Main recommendation endpoint using Influence Diagram + TOPSIS with User Location
     
     This endpoint:
-    1. Converts user preferences to criterion weights using Influence Diagram
-    2. Filters rooms based on hard constraints
-    3. Ranks rooms using TOPSIS algorithm
-    4. Returns top N recommendations with explanations
+    1. Takes user's location coordinates as required input
+    2. Converts user preferences to criterion weights using Influence Diagram
+    3. Filters rooms based on hard constraints and distance from user
+    4. Calculates distances for all candidate rooms
+    5. Ranks rooms using TOPSIS algorithm with distance as a criterion
+    6. Returns top N recommendations with explanations and distances
     """
     start_time = time.time()
     
@@ -176,47 +178,42 @@ async def get_recommendations(request: RecommendationRequest):
             influence_engine = InfluenceEngine(conn)
             
             # Map frontend preferences to backend weights
-            # Use new format if available, fallback to legacy
-            if hasattr(request.preferences, 'price_sensitivity'):
-                user_prefs = {
-                    'price_sensitivity': request.preferences.price_sensitivity,
-                    'comfort_priority': request.preferences.comfort_priority,
-                    'distance_tolerance': request.preferences.distance_tolerance,
-                    'view_importance': request.preferences.view_importance,
-                    'cleanliness_priority': request.preferences.cleanliness_priority,
-                }
-            else:
-                user_prefs = {
-                    'convenience_importance': request.preferences.convenience_importance,
-                    'comfort_importance': request.preferences.comfort_importance,
-                    'value_importance': request.preferences.value_importance
-                }
+            user_prefs = {
+                'price_sensitivity': request.preferences.price_sensitivity,
+                'comfort_priority': request.preferences.comfort_priority,
+                'distance_tolerance': request.preferences.distance_tolerance,
+                'view_importance': request.preferences.view_importance,
+                'cleanliness_priority': request.preferences.cleanliness_priority,
+            }
             
             criterion_weights = influence_engine.calculate_weights(user_prefs)
             weight_explanations = influence_engine.explain_weights(criterion_weights)
             
-            # Step 2: Filter rooms based on hard constraints
+            # Step 2: Filter rooms based on hard constraints with distance calculation
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Build WHERE clause
             where_conditions = ["status = 'AVAILABLE'"]
             params = []
             
-            # Distance calculation if lat/lng provided
-            distance_select = "0 as distance"
-            if request.filters and request.filters.latitude is not None and request.filters.longitude is not None:
-                # Haversine formula for distance calculation (in km)
-                distance_select = f"""
-                    (6371 * acos(
-                        cos(radians(%s)) * cos(radians(latitude)) * 
-                        cos(radians(longitude) - radians(%s)) + 
-                        sin(radians(%s)) * sin(radians(latitude))
-                    )) as distance
-                """
-                distance_params = [request.filters.latitude, request.filters.longitude, request.filters.latitude]
-            else:
-                distance_params = []
+            # Haversine formula for distance calculation (in km)
+            # Using user's location coordinates
+            user_lat = request.user_location.latitude
+            user_lng = request.user_location.longitude
             
+            # Distance formula without alias (for WHERE/HAVING clauses)
+            distance_formula = f"""(6371 * acos(
+                LEAST(1.0, GREATEST(-1.0,
+                    cos(radians({user_lat})) * cos(radians(latitude)) * 
+                    cos(radians(longitude) - radians({user_lng})) + 
+                    sin(radians({user_lat})) * sin(radians(latitude))
+                ))
+            ))"""
+            
+            # Distance select with alias (for SELECT clause)
+            distance_select = f"{distance_formula} as distance"
+            
+            # Apply filters
             if request.filters:
                 if request.filters.min_price is not None:
                     where_conditions.append("price >= %s")
@@ -247,39 +244,34 @@ async def get_recommendations(request: RecommendationRequest):
             
             where_clause = " AND ".join(where_conditions)
             
-            # Get filtered room IDs with distance
-            if distance_params:
-                query = f"""
-                    SELECT room_id, {distance_select}
-                    FROM rooms
-                    WHERE {where_clause}
-                """
-                all_params = distance_params + params
-                
-                # Add distance filter if specified
-                if request.filters and request.filters.max_distance is not None:
-                    query += " HAVING distance <= %s"
-                    all_params.append(request.filters.max_distance)
-                
-                query += """
-                    ORDER BY distance ASC, review_scores_rating DESC NULLS LAST
-                    LIMIT 100
-                """
-            else:
-                query = f"""
-                    SELECT room_id FROM rooms
-                    WHERE {where_clause}
-                    ORDER BY review_scores_rating DESC NULLS LAST
-                    LIMIT 100
-                """
-                all_params = params
+            # Get filtered rooms with distance calculation
+            query = f"""
+                SELECT 
+                    room_id,
+                    latitude,
+                    longitude,
+                    {distance_select}
+                FROM rooms
+                WHERE {where_clause}
+                  AND latitude IS NOT NULL 
+                  AND longitude IS NOT NULL
+            """
             
-            cursor.execute(query, all_params)
-            room_ids = [row['room_id'] for row in cursor.fetchall()]
+            # Add distance filter if specified
+            if request.filters and request.filters.max_distance is not None:
+                query += f" AND {distance_formula} <= %s"
+                params.append(request.filters.max_distance)
             
-            cursor.close()
+            query += """
+                ORDER BY distance ASC, review_scores_rating DESC NULLS LAST
+                LIMIT 100
+            """
             
-            if not room_ids:
+            cursor.execute(query, params)
+            room_data = cursor.fetchall()
+            
+            if not room_data:
+                cursor.close()
                 return RecommendationResponse(
                     session_id=str(uuid.uuid4()),
                     total_evaluated=0,
@@ -289,7 +281,12 @@ async def get_recommendations(request: RecommendationRequest):
                     processing_time_ms=(time.time() - start_time) * 1000
                 )
             
-            # Step 3: Rank using TOPSIS
+            room_ids = [row['room_id'] for row in room_data]
+            room_distances = {row['room_id']: float(row['distance']) for row in room_data}
+            
+            cursor.close()
+            
+            # Step 3: Rank using TOPSIS with distance integrated
             topsis_engine = TOPSISEngine(conn)
             topsis_results = topsis_engine.rank_alternatives(room_ids, criterion_weights)
             
@@ -300,12 +297,14 @@ async def get_recommendations(request: RecommendationRequest):
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             room_ids_str = ','.join(map(str, top_room_ids))
             
+            # Get full room details with distance
             cursor.execute(f"""
                 SELECT 
                     room_id, listing_id, name, price, latitude, longitude,
                     room_type, accommodates, bedrooms, 
                     review_scores_rating, number_of_reviews,
-                    picture_url, listing_url
+                    picture_url, listing_url,
+                    {distance_select}
                 FROM rooms
                 WHERE room_id IN ({room_ids_str})
             """)
@@ -313,16 +312,32 @@ async def get_recommendations(request: RecommendationRequest):
             rooms_dict = {row['room_id']: dict(row) for row in cursor.fetchall()}
             cursor.close()
             
-            # Step 5: Build response
+            # Step 5: Build response with distance information
             ranked_results = []
             for result in top_results:
                 room_data = rooms_dict.get(result['room_id'])
                 if room_data:
+                    # Add distance to room data
+                    distance_km = room_distances.get(result['room_id'])
+                    room_data['distance_km'] = round(distance_km, 2) if distance_km else None
+                    
+                    # Enhance explanation with distance info
+                    explanation = result['explanation']
+                    if distance_km is not None:
+                        if distance_km < 1:
+                            explanation += f". Very close ({distance_km:.1f} km)"
+                        elif distance_km < 3:
+                            explanation += f". Nearby ({distance_km:.1f} km)"
+                        elif distance_km < 10:
+                            explanation += f". Moderate distance ({distance_km:.1f} km)"
+                        else:
+                            explanation += f". Distance: {distance_km:.1f} km"
+                    
                     ranked_results.append(RecommendationResult(
                         rank=result['rank'],
                         room=RoomSummary(**room_data),
                         topsis_score=result['topsis_score'],
-                        explanation=result['explanation'],
+                        explanation=explanation,
                         distance_to_ideal=result['distance_to_ideal'],
                         distance_to_worst=result['distance_to_worst']
                     ))

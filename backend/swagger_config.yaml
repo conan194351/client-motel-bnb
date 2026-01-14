@@ -1,0 +1,856 @@
+openapi: 3.0.0
+info:
+  title: BnB SmartChoice DSS API
+  description: |
+    # BnB SmartChoice - Decision Support System API
+    
+    API hệ thống hỗ trợ quyết định cho đặt phòng BnB sử dụng:
+    - **Influence Diagram**: Chuyển đổi preferences của người dùng thành trọng số tiêu chí
+    - **TOPSIS Algorithm**: Thuật toán đa tiêu chí để xếp hạng phòng
+    - **Location-based Recommendation**: Tính toán khoảng cách từ vị trí người dùng
+    
+    ## Tính năng chính:
+    - ✅ Gợi ý phòng thông minh dựa trên preferences và location
+    - ✅ Tính toán khoảng cách thời gian thực (Haversine formula)
+    - ✅ Giải thích rõ ràng về ranking và weights
+    - ✅ Filters linh hoạt (giá, rating, khoảng cách, room type...)
+    - ✅ High performance với caching và optimization
+    
+    ## Quy trình xử lý:
+    1. **Input**: User location + Preferences + Filters
+    2. **Influence Engine**: Convert preferences → criterion weights
+    3. **Filter**: Apply hard constraints + distance filter
+    4. **TOPSIS**: Rank alternatives using multi-criteria decision making
+    5. **Output**: Ranked results with explanations + distances
+    
+    ## Base URL
+    - Development: `http://localhost:8000`
+    - Production: `https://api.bnbsmartchoice.com`
+    
+  version: 1.0.0
+  contact:
+    name: BnB SmartChoice Team
+    email: support@bnbsmartchoice.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.bnbsmartchoice.com
+    description: Production server
+
+tags:
+  - name: General
+    description: Health checks và general information
+  - name: Recommendations
+    description: Decision Support System endpoints (TOPSIS + Influence Diagram)
+  - name: Rooms
+    description: Room search và room details
+  - name: Configuration
+    description: Criteria và influence diagram configuration
+
+paths:
+  /:
+    get:
+      tags:
+        - General
+      summary: Root endpoint
+      description: API information và links to documentation
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: BnB SmartChoice DSS API
+                  version:
+                    type: string
+                    example: 1.0.0
+                  docs:
+                    type: string
+                    example: /docs
+                  health:
+                    type: string
+                    example: /health
+
+  /health:
+    get:
+      tags:
+        - General
+      summary: Health check
+      description: Kiểm tra trạng thái hệ thống và database
+      responses:
+        '200':
+          description: System healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                database: connected
+                rooms_count: 5432
+                criteria_count: 12
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Service unavailable: Database connection failed
+
+  /stats:
+    get:
+      tags:
+        - General
+      summary: Get database statistics
+      description: Thống kê về rooms, prices, ratings, room types
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+              example:
+                total_rooms: 5432
+                available_rooms: 4321
+                price_range:
+                  min: 100000
+                  avg: 750000
+                  max: 5000000
+                average_rating: 4.3
+                room_types:
+                  "Entire home/apt": 3200
+                  "Private room": 1800
+                  "Shared room": 432
+
+  /api/v1/dss/recommend:
+    post:
+      tags:
+        - Recommendations
+      summary: Get room recommendations (Main DSS endpoint)
+      description: |
+        ## Recommendation Engine với TOPSIS + Influence Diagram
+        
+        Endpoint chính để nhận gợi ý phòng thông minh dựa trên:
+        - **User Location** (required): Tọa độ GPS của người dùng
+        - **Preferences**: Các ưu tiên cá nhân (price sensitivity, comfort, distance...)
+        - **Filters**: Các ràng buộc cứng (price range, rating, distance...)
+        
+        ### Algorithm Flow:
+        1. **Influence Engine**: Convert user preferences → criterion weights
+        2. **Pre-filter**: Filter rooms by constraints + distance
+        3. **Distance Calculation**: Haversine formula to compute distances
+        4. **TOPSIS Ranking**: Multi-criteria decision making algorithm
+        5. **Explanation Generation**: Human-readable explanations
+        
+        ### Response Details:
+        - Top N rooms ranked by TOPSIS score (0-1, higher = better)
+        - Each room includes distance from user location
+        - Computed weights showing importance of each criterion
+        - Explanations for each recommendation
+        
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationRequest'
+            examples:
+              basic:
+                summary: Basic request (HCM City)
+                value:
+                  user_location:
+                    latitude: 10.762622
+                    longitude: 106.660172
+                  preferences:
+                    price_sensitivity: 0.7
+                    comfort_priority: 0.6
+                    distance_tolerance: 0.8
+                    view_importance: 0.5
+                    cleanliness_priority: 0.9
+                  limit: 5
+              
+              with_filters:
+                summary: With filters (Budget near location)
+                value:
+                  user_location:
+                    latitude: 10.762622
+                    longitude: 106.660172
+                  preferences:
+                    price_sensitivity: 0.8
+                    comfort_priority: 0.5
+                    distance_tolerance: 0.9
+                    view_importance: 0.4
+                    cleanliness_priority: 0.8
+                  filters:
+                    max_price: 800000
+                    min_rating: 4.0
+                    max_distance: 5
+                    min_accommodates: 2
+                  limit: 10
+              
+              luxury:
+                summary: Luxury stay (High comfort, superhost)
+                value:
+                  user_location:
+                    latitude: 10.762622
+                    longitude: 106.660172
+                  preferences:
+                    price_sensitivity: 0.2
+                    comfort_priority: 0.95
+                    distance_tolerance: 0.9
+                    view_importance: 0.8
+                    cleanliness_priority: 0.95
+                  filters:
+                    min_rating: 4.5
+                    max_distance: 3
+                    superhost_only: true
+                    room_type: "Entire home/apt"
+                  limit: 5
+              
+              budget:
+                summary: Budget travel (Price sensitive)
+                value:
+                  user_location:
+                    latitude: 10.762622
+                    longitude: 106.660172
+                  preferences:
+                    price_sensitivity: 0.95
+                    comfort_priority: 0.4
+                    distance_tolerance: 0.2
+                    view_importance: 0.3
+                    cleanliness_priority: 0.7
+                  filters:
+                    max_price: 500000
+                    min_rating: 3.5
+                  limit: 10
+
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+              example:
+                session_id: "550e8400-e29b-41d4-a716-446655440000"
+                total_evaluated: 85
+                computed_weights:
+                  PRICE: 0.25
+                  RATING_OVERALL: 0.30
+                  RATING_CLEANLINESS: 0.15
+                  RATING_LOCATION: 0.15
+                  DISTANCE_CENTER: 0.10
+                  AMENITIES_COUNT: 0.05
+                weight_explanations:
+                  - criterion_code: RATING_OVERALL
+                    criterion_name: Overall Rating
+                    weight: 0.30
+                    weight_percent: 30.0
+                    description: Overall guest satisfaction rating
+                    unit: stars
+                  - criterion_code: PRICE
+                    criterion_name: Price per Night
+                    weight: 0.25
+                    weight_percent: 25.0
+                    description: Nightly rate in VND
+                    unit: VND
+                ranked_results:
+                  - rank: 1
+                    room:
+                      room_id: 12345
+                      listing_id: 67890
+                      name: "Cozy Apartment in District 1"
+                      price: 500000
+                      latitude: 10.762622
+                      longitude: 106.660172
+                      room_type: "Entire home/apt"
+                      accommodates: 2
+                      bedrooms: 1.0
+                      review_scores_rating: 4.8
+                      number_of_reviews: 120
+                      picture_url: "https://example.com/pic.jpg"
+                      listing_url: "https://airbnb.com/rooms/67890"
+                      distance_km: 1.5
+                    topsis_score: 0.8745
+                    explanation: "Best overall match. Strong in: Overall Rating, Cleanliness. Very close (1.5 km)"
+                    distance_to_ideal: 0.0234
+                    distance_to_worst: 0.1567
+                processing_time_ms: 234.56
+        
+        '400':
+          description: Bad request (validation error)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: array
+                    items:
+                      type: object
+              example:
+                detail:
+                  - loc: ["body", "user_location", "latitude"]
+                    msg: "field required"
+                    type: "value_error.missing"
+        
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+              example:
+                detail: "Error processing recommendation: Database connection failed"
+
+  /api/v1/rooms:
+    get:
+      tags:
+        - Rooms
+      summary: Simple room search (without DSS)
+      description: Search rooms với basic filters (không dùng TOPSIS ranking)
+      parameters:
+        - name: city
+          in: query
+          description: Filter by city/location
+          schema:
+            type: string
+        - name: min_price
+          in: query
+          description: Minimum price per night
+          schema:
+            type: number
+            format: float
+        - name: max_price
+          in: query
+          description: Maximum price per night
+          schema:
+            type: number
+            format: float
+        - name: min_rating
+          in: query
+          description: Minimum rating (0-5)
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 5
+        - name: room_type
+          in: query
+          description: Room type filter
+          schema:
+            type: string
+            enum:
+              - "Entire home/apt"
+              - "Private room"
+              - "Shared room"
+              - "Hotel room"
+        - name: limit
+          in: query
+          description: Number of results to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  rooms:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoomDetail'
+
+  /api/v1/rooms/{room_id}:
+    get:
+      tags:
+        - Rooms
+      summary: Get room details
+      description: Lấy thông tin chi tiết của một phòng cụ thể
+      parameters:
+        - name: room_id
+          in: path
+          required: true
+          description: Room ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room:
+                    $ref: '#/components/schemas/RoomDetail'
+                  attributes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code:
+                          type: string
+                        name:
+                          type: string
+                        value:
+                          type: number
+                        unit:
+                          type: string
+                  normalized_values:
+                    type: object
+                    additionalProperties:
+                      type: number
+        '404':
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: "Room not found"
+
+  /api/v1/criteria:
+    get:
+      tags:
+        - Configuration
+      summary: Get all active criteria
+      description: Lấy danh sách các tiêu chí đánh giá đang active
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  criteria:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Criterion'
+
+  /api/v1/influence-diagram:
+    get:
+      tags:
+        - Configuration
+      summary: Get influence diagram structure
+      description: Lấy cấu trúc influence diagram (nodes và relationships)
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  influence_tree:
+                    type: array
+                    items:
+                      type: object
+
+components:
+  schemas:
+    UserLocation:
+      type: object
+      required:
+        - latitude
+        - longitude
+      properties:
+        latitude:
+          type: number
+          format: float
+          minimum: -90
+          maximum: 90
+          description: Latitude của user
+          example: 10.762622
+        longitude:
+          type: number
+          format: float
+          minimum: -180
+          maximum: 180
+          description: Longitude của user
+          example: 106.660172
+
+    UserPreferences:
+      type: object
+      properties:
+        price_sensitivity:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: Độ nhạy cảm với giá (0=không quan tâm, 1=rất quan trọng)
+          example: 0.7
+        comfort_priority:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: Mức độ ưu tiên tiện nghi/thoải mái
+          example: 0.8
+        distance_tolerance:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: Khả năng chấp nhận khoảng cách (0=xa ok, 1=phải gần)
+          example: 0.6
+        view_importance:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: Tầm quan trọng của view/thẩm mỹ
+          example: 0.5
+        cleanliness_priority:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: Mức độ ưu tiên độ sạch sẽ
+          example: 0.9
+
+    Filters:
+      type: object
+      properties:
+        min_price:
+          type: number
+          format: float
+          description: Giá tối thiểu mỗi đêm
+          example: 100000
+        max_price:
+          type: number
+          format: float
+          description: Giá tối đa mỗi đêm
+          example: 2000000
+        min_rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+          description: Rating tối thiểu
+          example: 4.0
+        room_type:
+          type: string
+          description: Loại phòng
+          enum:
+            - "Entire home/apt"
+            - "Private room"
+            - "Shared room"
+            - "Hotel room"
+          example: "Entire home/apt"
+        min_accommodates:
+          type: integer
+          minimum: 1
+          description: Số người tối thiểu
+          example: 2
+        max_distance:
+          type: number
+          format: float
+          description: Khoảng cách tối đa từ vị trí user (km)
+          example: 10.0
+        instant_bookable:
+          type: boolean
+          description: Chỉ hiện phòng đặt ngay
+          example: true
+        superhost_only:
+          type: boolean
+          default: false
+          description: Chỉ hiện phòng của superhost
+          example: false
+
+    RecommendationRequest:
+      type: object
+      required:
+        - user_location
+        - preferences
+      properties:
+        user_location:
+          $ref: '#/components/schemas/UserLocation'
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+        filters:
+          $ref: '#/components/schemas/Filters'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+          description: Số lượng kết quả trả về
+          example: 10
+
+    RoomSummary:
+      type: object
+      properties:
+        room_id:
+          type: integer
+          example: 12345
+        listing_id:
+          type: integer
+          example: 67890
+        name:
+          type: string
+          example: "Cozy Apartment in District 1"
+        price:
+          type: number
+          format: float
+          example: 500000
+        latitude:
+          type: number
+          format: float
+          example: 10.762622
+        longitude:
+          type: number
+          format: float
+          example: 106.660172
+        room_type:
+          type: string
+          example: "Entire home/apt"
+        accommodates:
+          type: integer
+          example: 2
+        bedrooms:
+          type: number
+          format: float
+          example: 1.0
+        review_scores_rating:
+          type: number
+          format: float
+          example: 4.8
+        number_of_reviews:
+          type: integer
+          example: 120
+        picture_url:
+          type: string
+          example: "https://example.com/pic.jpg"
+        listing_url:
+          type: string
+          example: "https://airbnb.com/rooms/67890"
+        distance_km:
+          type: number
+          format: float
+          description: Khoảng cách từ vị trí user (km)
+          example: 1.5
+
+    WeightExplanation:
+      type: object
+      properties:
+        criterion_code:
+          type: string
+          example: "RATING_OVERALL"
+        criterion_name:
+          type: string
+          example: "Overall Rating"
+        weight:
+          type: number
+          format: float
+          example: 0.30
+        weight_percent:
+          type: number
+          format: float
+          example: 30.0
+        description:
+          type: string
+          example: "Overall guest satisfaction rating"
+        unit:
+          type: string
+          example: "stars"
+
+    RecommendationResult:
+      type: object
+      properties:
+        rank:
+          type: integer
+          description: Thứ hạng (1 = tốt nhất)
+          example: 1
+        room:
+          $ref: '#/components/schemas/RoomSummary'
+        topsis_score:
+          type: number
+          format: float
+          description: TOPSIS similarity score (0-1, càng cao càng tốt)
+          example: 0.8745
+        explanation:
+          type: string
+          description: Giải thích tại sao phòng này được xếp hạng như vậy
+          example: "Best overall match. Strong in: Overall Rating, Cleanliness. Very close (1.5 km)"
+        distance_to_ideal:
+          type: number
+          format: float
+          description: Khoảng cách Euclidean tới giải pháp lý tưởng
+          example: 0.0234
+        distance_to_worst:
+          type: number
+          format: float
+          description: Khoảng cách Euclidean tới giải pháp tồi nhất
+          example: 0.1567
+
+    RecommendationResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: Session ID cho caching
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        total_evaluated:
+          type: integer
+          description: Tổng số phòng đã được đánh giá
+          example: 85
+        computed_weights:
+          type: object
+          additionalProperties:
+            type: number
+            format: float
+          description: Trọng số tiêu chí được tính từ preferences
+          example:
+            PRICE: 0.25
+            RATING_OVERALL: 0.30
+        weight_explanations:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeightExplanation'
+        ranked_results:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationResult'
+        processing_time_ms:
+          type: number
+          format: float
+          description: Thời gian xử lý (milliseconds)
+          example: 234.56
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "healthy"
+        database:
+          type: string
+          example: "connected"
+        rooms_count:
+          type: integer
+          example: 5432
+        criteria_count:
+          type: integer
+          example: 12
+
+    StatsResponse:
+      type: object
+      properties:
+        total_rooms:
+          type: integer
+          example: 5432
+        available_rooms:
+          type: integer
+          example: 4321
+        price_range:
+          type: object
+          properties:
+            min:
+              type: number
+              format: float
+            avg:
+              type: number
+              format: float
+            max:
+              type: number
+              format: float
+        average_rating:
+          type: number
+          format: float
+          example: 4.3
+        room_types:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            "Entire home/apt": 3200
+            "Private room": 1800
+
+    RoomDetail:
+      type: object
+      properties:
+        room_id:
+          type: integer
+        listing_id:
+          type: integer
+        name:
+          type: string
+        price:
+          type: number
+        latitude:
+          type: number
+        longitude:
+          type: number
+        room_type:
+          type: string
+        accommodates:
+          type: integer
+        bedrooms:
+          type: number
+        bathrooms:
+          type: number
+        review_scores_rating:
+          type: number
+        number_of_reviews:
+          type: integer
+        picture_url:
+          type: string
+        listing_url:
+          type: string
+        host_name:
+          type: string
+        host_is_superhost:
+          type: boolean
+
+    Criterion:
+      type: object
+      properties:
+        criterion_id:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        unit:
+          type: string
+        is_benefit:
+          type: boolean
+        is_active:
+          type: boolean
+        display_order:
+          type: integer
+

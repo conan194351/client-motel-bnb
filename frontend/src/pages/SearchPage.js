@@ -165,7 +165,7 @@ const SearchPage = () => {
                   Smart Match
                 </Text>
                 <Badge colorScheme={getBadgeColor()} fontSize="2xs">
-                  {topsisPercent >= 85 ? 'Xuất sắc' : topsisPercent >= 70 ? 'Tốt' : 'Phù hợp'}
+                  {topsisPercent >= 85 ? 'Excellent' : topsisPercent >= 70 ? 'Good' : 'Match'}
                 </Badge>
               </VStack>
             </HStack>
@@ -173,74 +173,81 @@ const SearchPage = () => {
         </Box>
 
         {/* Content Section */}
-        <Box p={4} onClick={() => navigate(`/room/${room.id}`)}>
+        <Box p={4}>
           <VStack align="stretch" spacing={2}>
-            {/* Name & Location */}
-            <Heading size="sm" noOfLines={1}>
-              {room.name}
-            </Heading>
-            <HStack spacing={1} color="gray.600">
-              <Icon as={FiMapPin} w={3} h={3} />
-              <Text fontSize="sm">{room.location}</Text>
-            </HStack>
+            {/* Clickable area for room details */}
+            <Box onClick={() => navigate(`/room/${room.id}`)} cursor="pointer">
+              {/* Name & Location */}
+              <Heading size="sm" noOfLines={1}>
+                {room.name}
+              </Heading>
+              <HStack spacing={1} color="gray.600" mt={2}>
+                <Icon as={FiMapPin} w={3} h={3} />
+                <Text fontSize="sm">{room.location}</Text>
+              </HStack>
 
-            {/* Explanation Badge */}
-            {room.explanation && (
-              <Badge
-                colorScheme="purple"
-                fontSize="xs"
-                p={2}
-                borderRadius="6px"
-                textAlign="center"
-              >
-                💡 {room.explanation}
-              </Badge>
-            )}
+              {/* Explanation Badge */}
+              {room.explanation && (
+                <Badge
+                  colorScheme="purple"
+                  fontSize="xs"
+                  p={2}
+                  borderRadius="6px"
+                  textAlign="center"
+                  mt={2}
+                >
+                  💡 {room.explanation}
+                </Badge>
+              )}
 
-            {/* Rating & Reviews */}
-            <HStack spacing={2}>
-              <Badge colorScheme="yellow" display="flex" alignItems="center" gap={1}>
-                ⭐ {room.rating}
-              </Badge>
-              <Text fontSize="xs" color="gray.500">
-                ({room.reviews} đánh giá)
-              </Text>
+              {/* Rating & Reviews */}
+              <HStack spacing={2} mt={2}>
+                <Badge colorScheme="yellow" display="flex" alignItems="center" gap={1}>
+                  ⭐ {room.rating}
+                </Badge>
+                <Text fontSize="xs" color="gray.500">
+                  ({room.reviews} reviews)
+                </Text>
               {room.distance && (
                 <>
                   <Text fontSize="xs" color="gray.400">•</Text>
                   <Text fontSize="xs" color="gray.600">
-                    {room.distance} km
+                    {parseFloat(room.distance).toFixed(2)} km
                   </Text>
                 </>
               )}
-            </HStack>
+              </HStack>
+            </Box>
 
-            {/* Price */}
+            {/* Price & Compare - NOT clickable */}
             <HStack justify="space-between" align="center" pt={2} borderTop="1px solid" borderColor="gray.100">
               <VStack align="start" spacing={0}>
                 <Text fontSize="xl" fontWeight="700" color={BRAND_PRIMARY}>
-                  {room.price?.toLocaleString('vi-VN')}₫
+                  ${room.price?.toLocaleString('en-US')}
                 </Text>
                 <Text fontSize="xs" color="gray.500">
-                  / đêm
+                  /night
                 </Text>
               </VStack>
               
               {/* Compare Checkbox */}
-              <Tooltip label="Thêm vào so sánh" placement="top">
-                <Checkbox
-                  isChecked={isSelected}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    toggleRoomForCompare(room);
-                  }}
-                  colorScheme="orange"
-                  size="lg"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Text fontSize="xs">So sánh</Text>
-                </Checkbox>
-              </Tooltip>
+              <Box onClick={(e) => e.stopPropagation()}>
+                <Tooltip label="Add to compare" placement="top">
+                  <Box>
+                    <Checkbox
+                      isChecked={isSelected}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleRoomForCompare(room);
+                      }}
+                      colorScheme="orange"
+                      size="lg"
+                    >
+                      <Text fontSize="xs">Compare</Text>
+                    </Checkbox>
+                  </Box>
+                </Tooltip>
+              </Box>
             </HStack>
           </VStack>
         </Box>
@@ -261,10 +268,10 @@ const SearchPage = () => {
                 onClick={() => navigate('/')}
                 leftIcon={<Icon as={FiChevronLeft} />}
               >
-                Quay lại
+                Back
               </Button>
               <Heading size="md" color="gray.700">
-                Kết quả thông minh
+                Smart Results
               </Heading>
               <Box w="100px" /> {/* Spacer for centering */}
             </Flex>
@@ -281,12 +288,12 @@ const SearchPage = () => {
               
               <LocationSearchInput
                 onLocationSelect={handleLocationSelect}
-                placeholder="Tìm địa điểm khác ở New York..."
+                placeholder="Search another location in New York..."
                 defaultValue={searchParams.location}
               />
               
               {/* Smart Filter Button */}
-              <Tooltip label="Bộ lọc thông minh" placement="bottom">
+              <Tooltip label="Smart Filters" placement="bottom">
                 <Button
                   onClick={onFilterOpen}
                   bg={BRAND_PRIMARY}
@@ -294,7 +301,7 @@ const SearchPage = () => {
                   _hover={{ bg: 'brand.600' }}
                   leftIcon={<Icon as={FiSliders} />}
                 >
-                  Lọc thông minh
+                  Smart Filters
                 </Button>
               </Tooltip>
             </HStack>
@@ -313,7 +320,7 @@ const SearchPage = () => {
                   <HStack>
                     <Icon as={FiBarChart2} color="blue.600" />
                     <Text fontSize="sm" fontWeight="600" color="blue.800">
-                      Đã chọn {selectedForCompare.length} phòng để so sánh
+                      Selected {selectedForCompare.length} room(s) to compare
                     </Text>
                   </HStack>
                   <HStack>
@@ -323,7 +330,7 @@ const SearchPage = () => {
                       colorScheme="blue"
                       onClick={clearCompareSelection}
                     >
-                      Xóa
+                      Clear
                     </Button>
                     <Button
                       size="sm"
@@ -333,7 +340,7 @@ const SearchPage = () => {
                       onClick={handleCompareClick}
                       leftIcon={<Icon as={FiBarChart2} />}
                     >
-                      So sánh ngay
+                      Compare Now
                     </Button>
                   </HStack>
                 </Flex>
@@ -348,14 +355,14 @@ const SearchPage = () => {
         {dssResults.loading ? (
           <VStack spacing={4} py={20}>
             <CircularProgress isIndeterminate color={BRAND_PRIMARY} size="60px" />
-            <Text color="gray.600">Đang tìm kiếm phòng phù hợp nhất...</Text>
+            <Text color="gray.600">Searching for best matches...</Text>
           </VStack>
         ) : dssResults.error ? (
           <VStack spacing={4} py={20}>
             <Icon as={FiCheckCircle} w={12} h={12} color="red.500" />
             <Text color="gray.600">{dssResults.error}</Text>
             <Button onClick={fetchRecommendations} colorScheme="orange">
-              Thử lại
+              Try Again
             </Button>
           </VStack>
         ) : (
@@ -363,10 +370,10 @@ const SearchPage = () => {
             {/* Results Summary */}
             <HStack justify="space-between" align="center">
               <Text fontSize="sm" color="gray.600">
-                Tìm thấy <Text as="span" fontWeight="700">{dssResults.ranked_rooms.length}</Text> phòng phù hợp
+                Found <Text as="span" fontWeight="700">{dssResults.ranked_rooms.length}</Text> matching room(s)
               </Text>
               <Badge colorScheme="green" p={2} borderRadius="6px">
-                ✨ Sắp xếp theo độ phù hợp
+                ✨ Sorted by Best Match
               </Badge>
             </HStack>
 

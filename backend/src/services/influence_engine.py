@@ -87,14 +87,18 @@ class InfluenceEngine:
         # Check if using new direct preference format
         if 'price_sensitivity' in user_preferences:
             # New format: map directly to criteria weights
+            # Note: view_importance is distributed across RATING_OVERALL and RATING_LOCATION
+            # since VIEW_QUALITY criterion may not exist in all databases
+            view_weight = user_preferences.get('view_importance', 0.5)
+            comfort_weight = user_preferences.get('comfort_priority', 0.5)
+            
             raw_weights = {
                 'PRICE': user_preferences.get('price_sensitivity', 0.5),
-                'RATING_OVERALL': user_preferences.get('comfort_priority', 0.5) * 0.4,
+                'RATING_OVERALL': comfort_weight * 0.4 + view_weight * 0.3,
                 'RATING_CLEANLINESS': user_preferences.get('cleanliness_priority', 0.5),
-                'RATING_LOCATION': user_preferences.get('distance_tolerance', 0.5),
+                'RATING_LOCATION': user_preferences.get('distance_tolerance', 0.5) + view_weight * 0.2,
                 'DISTANCE_CENTER': user_preferences.get('distance_tolerance', 0.5) * 0.3,
-                'AMENITIES_COUNT': user_preferences.get('comfort_priority', 0.5) * 0.3,
-                'VIEW_QUALITY': user_preferences.get('view_importance', 0.5),
+                'AMENITIES_COUNT': comfort_weight * 0.3 + view_weight * 0.1,
             }
             
             # Normalize to sum to 1.0

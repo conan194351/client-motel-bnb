@@ -60,9 +60,6 @@ const RoomDetailPage = () => {
     const room = dssResults.ranked_rooms.find(r => r.id === parseInt(id));
     if (room) {
       setRoomData(enrichRoomData(room));
-    } else {
-      // Fallback to mock data
-      setRoomData(getMockRoomData());
     }
   }, [id, dssResults]);
 
@@ -81,11 +78,11 @@ const RoomDetailPage = () => {
     if (!roomData.normalized_values) return [];
     
     const criteriaLabels = {
-      price: 'Giá cả',
-      comfort: 'Tiện nghi',
-      distance: 'Vị trí',
+      price: 'Price',
+      comfort: 'Amenities',
+      distance: 'Location',
       view: 'View',
-      cleanliness: 'Vệ sinh',
+      cleanliness: 'Cleanliness',
     };
 
     return Object.entries(roomData.normalized_values).map(([key, value]) => ({
@@ -114,12 +111,12 @@ const RoomDetailPage = () => {
               onClick={() => navigate('/search')}
               leftIcon={<Icon as={FiChevronLeft} />}
             >
-              Quay lại
+              Back
             </Button>
             
             <HStack>
               <Button variant="ghost" leftIcon={<Icon as={FiShare2} />}>
-                Chia sẻ
+                Share
               </Button>
               <Button
                 variant="ghost"
@@ -191,7 +188,7 @@ const RoomDetailPage = () => {
                       ⭐ {roomData.rating}
                     </Badge>
                     <Text fontSize="sm" color="gray.600">
-                      ({roomData.reviewCount} đánh giá)
+                      ({roomData.reviewCount} reviews)
                     </Text>
                   </HStack>
                 </VStack>
@@ -247,12 +244,12 @@ const RoomDetailPage = () => {
                   {roomData.host.verified && (
                     <Badge colorScheme="green" display="flex" alignItems="center">
                       <Icon as={FiCheck} mr={1} />
-                      Đã xác minh
+                      Verified
                     </Badge>
                   )}
                 </HStack>
                 <Text fontSize="sm" color="gray.600">
-                  Phản hồi: {roomData.host.responseTime}
+                  Response: {roomData.host.responseTime}
                 </Text>
               </VStack>
               <Button
@@ -261,7 +258,7 @@ const RoomDetailPage = () => {
                 color="white"
                 _hover={{ bg: 'brand.600' }}
               >
-                Chat ngay
+                Contact Host
               </Button>
             </HStack>
 
@@ -269,23 +266,23 @@ const RoomDetailPage = () => {
 
             {/* Room Specs */}
             <Box>
-              <Heading size="md" mb={4}>Thông tin phòng</Heading>
+              <Heading size="md" mb={4}>Room Information</Heading>
               <SimpleGrid columns={4} spacing={4}>
                 <VStack>
                   <Text fontSize="2xl">👥</Text>
-                  <Text fontSize="sm" fontWeight="600">{roomData.specs.guests} khách</Text>
+                  <Text fontSize="sm" fontWeight="600">{roomData.specs.guests} guests</Text>
                 </VStack>
                 <VStack>
                   <Text fontSize="2xl">🛏️</Text>
-                  <Text fontSize="sm" fontWeight="600">{roomData.specs.bedrooms} phòng ngủ</Text>
+                  <Text fontSize="sm" fontWeight="600">{roomData.specs.bedrooms} bedroom(s)</Text>
                 </VStack>
                 <VStack>
                   <Text fontSize="2xl">🛏️</Text>
-                  <Text fontSize="sm" fontWeight="600">{roomData.specs.beds} giường</Text>
+                  <Text fontSize="sm" fontWeight="600">{roomData.specs.beds} bed(s)</Text>
                 </VStack>
                 <VStack>
                   <Text fontSize="2xl">🚿</Text>
-                  <Text fontSize="sm" fontWeight="600">{roomData.specs.bathrooms} WC</Text>
+                  <Text fontSize="sm" fontWeight="600">{roomData.specs.bathrooms} bathroom(s)</Text>
                 </VStack>
               </SimpleGrid>
             </Box>
@@ -295,7 +292,7 @@ const RoomDetailPage = () => {
             {/* DSS Radar Chart */}
             {roomData.normalized_values && (
               <Box>
-                <Heading size="md" mb={4}>Phân tích đa tiêu chí</Heading>
+                <Heading size="md" mb={4}>Multi-Criteria Analysis</Heading>
                 <Box
                   bg="gray.50"
                   p={6}
@@ -326,7 +323,7 @@ const RoomDetailPage = () => {
                     </RadarChart>
                   </ResponsiveContainer>
                   <Text fontSize="sm" color="gray.600" textAlign="center" mt={4}>
-                    Biểu đồ thể hiện điểm mạnh của phòng theo các tiêu chí đánh giá
+                    Chart shows room strengths across evaluation criteria
                   </Text>
                 </Box>
               </Box>
@@ -336,7 +333,7 @@ const RoomDetailPage = () => {
 
             {/* Amenities */}
             <Box>
-              <Heading size="md" mb={4}>Tiện nghi</Heading>
+              <Heading size="md" mb={4}>Amenities</Heading>
               <SimpleGrid columns={2} spacing={3}>
                 {roomData.amenities.map((amenity, index) => (
                   <HStack key={index} spacing={3}>
@@ -351,7 +348,7 @@ const RoomDetailPage = () => {
 
             {/* Description */}
             <Box>
-              <Heading size="md" mb={4}>Mô tả</Heading>
+              <Heading size="md" mb={4}>Description</Heading>
               <Box
                 maxH={isDescriptionOpen ? 'none' : '100px'}
                 overflow="hidden"
@@ -378,7 +375,7 @@ const RoomDetailPage = () => {
                 rightIcon={<Icon as={isDescriptionOpen ? FiChevronUp : FiChevronDown} />}
                 onClick={() => setIsDescriptionOpen(!isDescriptionOpen)}
               >
-                {isDescriptionOpen ? 'Thu gọn' : 'Đọc thêm'}
+                {isDescriptionOpen ? 'Show less' : 'Read more'}
               </Button>
             </Box>
 
@@ -386,7 +383,7 @@ const RoomDetailPage = () => {
 
             {/* Reviews Section */}
             <Box>
-              <Heading size="md" mb={4}>Đánh giá</Heading>
+              <Heading size="md" mb={4}>Reviews</Heading>
               <VStack align="stretch" spacing={4}>
                 {roomData.reviews.slice(0, 2).map((review) => (
                   <Box key={review.id} p={4} bg="gray.50" borderRadius="12px">
@@ -408,7 +405,7 @@ const RoomDetailPage = () => {
                 w="100%"
                 onClick={() => {}}
               >
-                Xem tất cả {roomData.reviewCount} đánh giá
+                View all {roomData.reviewCount} reviews
               </Button>
             </Box>
           </VStack>
@@ -427,13 +424,13 @@ const RoomDetailPage = () => {
                 <Box>
                   <HStack justify="space-between" mb={2}>
                     <Text fontSize="2xl" fontWeight="700" color={BRAND_PRIMARY}>
-                      {roomData.price?.toLocaleString('vi-VN')}₫
+                      ${roomData.price?.toLocaleString('en-US')}
                     </Text>
-                    <Text fontSize="sm" color="gray.600">/ đêm</Text>
+                    <Text fontSize="sm" color="gray.600">/night</Text>
                   </HStack>
                   {roomData.topsis_score && (
                     <Badge colorScheme="green" fontSize="sm" p={2} w="100%">
-                      🎯 {topsisPercent}% phù hợp với bạn
+                      🎯 {topsisPercent}% match for you
                     </Badge>
                   )}
                 </Box>
@@ -441,13 +438,13 @@ const RoomDetailPage = () => {
                 <Divider />
 
                 <VStack align="stretch" spacing={2}>
-                  <Text fontSize="sm" fontWeight="600">Nhận phòng</Text>
+                  <Text fontSize="sm" fontWeight="600">Check-in</Text>
                   <Input type="date" />
                   
-                  <Text fontSize="sm" fontWeight="600" mt={2}>Trả phòng</Text>
+                  <Text fontSize="sm" fontWeight="600" mt={2}>Check-out</Text>
                   <Input type="date" />
                   
-                  <Text fontSize="sm" fontWeight="600" mt={2}>Số khách</Text>
+                  <Text fontSize="sm" fontWeight="600" mt={2}>Guests</Text>
                   <Input type="number" defaultValue={2} min={1} max={roomData.specs.guests} />
                 </VStack>
 
@@ -458,11 +455,11 @@ const RoomDetailPage = () => {
                   _hover={{ bg: 'brand.600' }}
                   w="100%"
                 >
-                  Đặt ngay
+                  Book Now
                 </Button>
 
                 <Text fontSize="xs" color="gray.500" textAlign="center">
-                  Bạn chưa bị tính phí
+                  You won't be charged yet
                 </Text>
               </VStack>
             </Box>
@@ -484,77 +481,53 @@ function enrichRoomData(room) {
       'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800',
     ],
     host: {
-      name: 'Nguyễn Minh Anh',
+      name: room.host_name || 'John Smith',
       avatar: 'https://i.pravatar.cc/150?img=1',
-      responseTime: '< 1 giờ',
-      verified: true,
+      responseTime: '< 1 hour',
+      verified: room.host_is_superhost || false,
     },
     amenities: [
-      { icon: FiWifi, name: 'Wifi miễn phí', available: true },
-      { icon: MdPool, name: 'Bể bơi', available: true },
-      { icon: FiMonitor, name: 'Điều hòa', available: true },
-      { icon: MdKitchen, name: 'Bếp đầy đủ', available: true },
-      { icon: FiTruck, name: 'Bãi đỗ xe', available: true },
-      { icon: MdBalcony, name: 'Ban công', available: true },
-      { icon: MdLocalLaundryService, name: 'Máy giặt', available: true },
-      { icon: FiCoffee, name: 'Máy pha cà phê', available: true },
+      { icon: FiWifi, name: 'Free Wifi', available: true },
+      { icon: MdPool, name: 'Swimming Pool', available: true },
+      { icon: FiMonitor, name: 'Air Conditioning', available: true },
+      { icon: MdKitchen, name: 'Full Kitchen', available: true },
+      { icon: FiTruck, name: 'Free Parking', available: true },
+      { icon: MdBalcony, name: 'Balcony', available: true },
+      { icon: MdLocalLaundryService, name: 'Washing Machine', available: true },
+      { icon: FiCoffee, name: 'Coffee Maker', available: true },
     ],
-    description: `Căn hộ sang trọng với view tuyệt đẹp, nằm ở vị trí đắc địa. 
+    description: room.description || `Luxurious apartment with stunning views in a prime location.
     
-Không gian được thiết kế hiện đại, trang nhã với đầy đủ tiện nghi cao cấp. Phòng ngủ rộng rãi, thoáng mát với giường king size êm ái. Phòng khách được trang trí sang trọng với sofa thoải mái và TV màn hình lớn.
+Modern and elegant design with premium amenities throughout. Spacious and airy bedroom with a comfortable king-size bed. Living room beautifully decorated with comfortable sofas and large-screen TV.
 
-Đặc biệt, căn hộ có ban công riêng với view tuyệt đẹp, lý tưởng để thư giãn. Bếp được trang bị đầy đủ dụng cụ nấu nướng hiện đại.
+The apartment features a private balcony with breathtaking views, perfect for relaxation. Kitchen fully equipped with modern cooking appliances.
 
-Vị trí thuận lợi, gần các nhà hàng, quán cafe và trung tâm mua sắm.`,
+Convenient location near restaurants, cafes, and shopping centers.`,
     specs: {
-      guests: 4,
-      bedrooms: 2,
-      beds: 2,
-      bathrooms: 2,
+      guests: room.accommodates || 4,
+      bedrooms: room.bedrooms || 2,
+      beds: room.beds || 2,
+      bathrooms: room.bathrooms || 2,
     },
     reviews: [
       {
         id: 1,
-        user: 'Trần Văn Bình',
+        user: 'Michael Johnson',
         avatar: 'https://i.pravatar.cc/150?img=12',
         rating: 5,
-        date: '2 tuần trước',
-        comment: 'Căn hộ rất đẹp! Chủ nhà thân thiện và nhiệt tình. Chắc chắn sẽ quay lại lần sau.',
+        date: '2 weeks ago',
+        comment: 'Beautiful apartment! Host was friendly and helpful. Will definitely come back.',
       },
       {
         id: 2,
-        user: 'Lê Thị Hương',
+        user: 'Sarah Williams',
         avatar: 'https://i.pravatar.cc/150?img=5',
         rating: 5,
-        date: '3 tuần trước',
-        comment: 'Phòng sạch sẽ, tiện nghi đầy đủ. Rất hài lòng!',
+        date: '3 weeks ago',
+        comment: 'Clean room with all amenities. Very satisfied!',
       },
     ],
   };
-}
-
-// Mock data fallback
-function getMockRoomData() {
-  return enrichRoomData({
-    id: 1,
-    name: 'Căn hộ cao cấp view biển tuyệt đẹp',
-    location: 'Sơn Trà, Đà Nẵng',
-    price: 850000,
-    rating: 4.9,
-    reviewCount: 128,
-    reviews: 128,
-    image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
-    topsis_score: 0.88,
-    explanation: 'Cân bằng tốt giữa giá cả và tiện nghi',
-    distance: 2.5,
-    normalized_values: {
-      price: 0.85,
-      comfort: 0.90,
-      distance: 0.88,
-      view: 0.92,
-      cleanliness: 0.87,
-    },
-  });
 }
 
 // Missing Input component import - add to Chakra imports

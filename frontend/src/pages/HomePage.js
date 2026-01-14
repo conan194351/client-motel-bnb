@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -11,24 +11,62 @@ import {
   IconButton,
   Heading,
   Button,
+  Spinner,
 } from '@chakra-ui/react';
 import { 
   FiMapPin, 
   FiHeart,
-  FiHome,
-  FiKey,
 } from 'react-icons/fi';
-import { MdVilla, MdCabin } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import { useDSS } from '../contexts/DSSContext';
 import LocationSearchInput from '../components/LocationSearchInput';
-import { BRAND_PRIMARY, BRAND_HOVER, BRAND_LIGHT } from '../constants/colors';
+import { BRAND_PRIMARY, BRAND_HOVER } from '../constants/colors';
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { updateSearchParams } = useDSS();
+  const { updateSearchParams, fetchRecommendations } = useDSS();
   const [favorites, setFavorites] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [featuredRooms, setFeaturedRooms] = useState([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
+
+  // Load featured rooms on mount
+  useEffect(() => {
+    const loadFeaturedRooms = async () => {
+      setLoadingFeatured(true);
+      try {
+        // Set default location to NYC
+        updateSearchParams({
+          location: 'New York, NY, USA',
+          lat: 40.7128,
+          lng: -74.0060,
+          city: 'New York',
+        });
+
+        // Fetch recommendations (no filters, just limit)
+        const response = await fetchRecommendations(8);
+
+        if (response && response.ranked_results) {
+          setFeaturedRooms(response.ranked_results.map(result => ({
+            id: result.room.room_id,
+            name: result.room.name,
+            location: result.room.neighbourhood_cleansed || result.room.city || 'New York, NY',
+            price: result.room.price?.toLocaleString('en-US') || '0',
+            image: result.room.picture_url || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=300&fit=crop',
+            rating: result.room.review_scores_rating || 4.0,
+            reviews: result.room.number_of_reviews || 0,
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading featured rooms:', error);
+        setFeaturedRooms([]);
+      } finally {
+        setLoadingFeatured(false);
+      }
+    };
+
+    loadFeaturedRooms();
+  }, []);
 
   const handleLocationSelect = (location) => {
     console.log('Location selected:', location);
@@ -45,52 +83,6 @@ const HomePage = () => {
     // Navigate to search page
     navigate('/search');
   };
-
-  const categories = [
-    { name: 'Homestay', icon: FiHome, color: BRAND_PRIMARY },
-    { name: 'Căn hộ', icon: FiKey, color: '#9F7AEA' },
-    { name: 'Villa', icon: MdVilla, color: '#38A169' },
-    { name: 'Glamping', icon: MdCabin, color: '#DD6B20' },
-  ];
-
-  const featuredRooms = [
-    {
-      id: 1,
-      name: 'Căn hộ view biển tuyệt đẹp',
-      location: 'Đà Nẵng, Việt Nam',
-      price: '850.000',
-      image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=300&fit=crop',
-      rating: 4.9,
-      reviews: 128,
-    },
-    {
-      id: 2,
-      name: 'Villa sang trọng giữa núi rừng',
-      location: 'Đà Lạt, Lâm Đồng',
-      price: '1.200.000',
-      image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&h=300&fit=crop',
-      rating: 4.8,
-      reviews: 95,
-    },
-    {
-      id: 3,
-      name: 'Homestay ấm cúng phong cách Nhật',
-      location: 'Hà Nội, Việt Nam',
-      price: '500.000',
-      image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=500&h=300&fit=crop',
-      rating: 4.7,
-      reviews: 203,
-    },
-    {
-      id: 4,
-      name: 'Căn hộ Studio hiện đại',
-      location: 'Hồ Chí Minh, Việt Nam',
-      price: '650.000',
-      image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500&h=300&fit=crop',
-      rating: 4.9,
-      reviews: 156,
-    },
-  ];
 
   const toggleFavorite = (id) => {
     setFavorites(prev => 
@@ -114,11 +106,11 @@ const HomePage = () => {
           <Flex justify="space-between" align="center">
             <VStack align="start" spacing={0}>
               <Text fontSize="lg" fontWeight="600" color="gray.800">
-                Xin chào, Andrew! 👋
+                Hello, Andrew! 👋
               </Text>
               <Flex align="center" gap={1} color="gray.600">
                 <Icon as={FiMapPin} boxSize={4} />
-                <Text fontSize="sm">Hà Nội, Việt Nam</Text>
+                <Text fontSize="sm">New York, NY</Text>
               </Flex>
             </VStack>
           </Flex>
@@ -131,7 +123,7 @@ const HomePage = () => {
           <VStack spacing={3} align="stretch">
             <LocationSearchInput
               onLocationSelect={handleLocationSelect}
-              placeholder="Tìm kiếm địa điểm ở New York..."
+              placeholder="Search locations in New York..."
               defaultValue={selectedLocation?.description}
             />
             
@@ -162,7 +154,7 @@ const HomePage = () => {
                     _hover={{ bg: BRAND_HOVER }}
                     onClick={() => navigate('/search')}
                   >
-                    Tìm phòng →
+                    Search Rooms →
                   </Button>
                 </Flex>
               </Box>
@@ -170,70 +162,53 @@ const HomePage = () => {
           </VStack>
         </Box>
 
-        {/* Categories */}
-        <Box mb={8}>
-          <HStack spacing={4} overflowX="auto" pb={2}>
-            {categories.map((category) => (
-              <VStack
-                key={category.name}
-                minW="80px"
-                p={3}
-                bg="gray.50"
-                borderRadius="12px"
-                cursor="pointer"
-                transition="all 0.2s"
-                _hover={{ 
-                  bg: BRAND_LIGHT, 
-                  transform: 'translateY(-2px)',
-                  boxShadow: 'md'
-                }}
-              >
-                <Box
-                  bg="white"
-                  p={3}
-                  borderRadius="full"
-                  boxShadow="sm"
-                >
-                  <Icon as={category.icon} boxSize={6} color={category.color} />
-                </Box>
-                <Text fontSize="sm" fontWeight="500" textAlign="center">
-                  {category.name}
-                </Text>
-              </VStack>
-            ))}
-          </HStack>
-        </Box>
-
         {/* Featured Section */}
         <Box>
           <Flex justify="space-between" align="center" mb={4}>
             <Heading size="md" fontWeight="700">
-              Đề xuất cho bạn ✨
+              Recommended for you ✨
             </Heading>
-            <Text fontSize="sm" color={BRAND_PRIMARY} fontWeight="600" cursor="pointer">
-              Xem tất cả
+            <Text fontSize="sm" color={BRAND_PRIMARY} fontWeight="600" cursor="pointer" onClick={() => navigate('/search')}>
+              View all
             </Text>
           </Flex>
 
-          <HStack 
-            spacing={4} 
-            overflowX="auto" 
-            pb={4}
-            css={{
-              '&::-webkit-scrollbar': {
-                height: '8px',
-              },
-              '&::-webkit-scrollbar-track': {
-                background: '#f1f1f1',
-                borderRadius: '10px',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: '#FF7A45',
-                borderRadius: '10px',
-              },
-            }}
-          >
-            {featuredRooms.map((room) => (
+          {loadingFeatured ? (
+            <Flex justify="center" align="center" minH="200px">
+              <VStack spacing={3}>
+                <Spinner size="lg" color={BRAND_PRIMARY} />
+                <Text fontSize="sm" color="gray.600">Loading recommendations...</Text>
+              </VStack>
+            </Flex>
+          ) : featuredRooms.length === 0 ? (
+            <Flex justify="center" align="center" minH="200px">
+              <VStack spacing={3}>
+                <Text fontSize="sm" color="gray.600">No rooms available at the moment.</Text>
+                <Button onClick={() => navigate('/search')} colorScheme="orange">
+                  Try Search
+                </Button>
+              </VStack>
+            </Flex>
+          ) : (
+            <HStack 
+              spacing={4} 
+              overflowX="auto" 
+              pb={4}
+              css={{
+                '&::-webkit-scrollbar': {
+                  height: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: '#f1f1f1',
+                  borderRadius: '10px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: '#FF7A45',
+                  borderRadius: '10px',
+                },
+              }}
+            >
+              {featuredRooms.map((room) => (
               <Box
                 key={room.id}
                 minW="280px"
@@ -297,45 +272,18 @@ const HomePage = () => {
                         </Text>
                       </Flex>
                       <Text fontWeight="700" color={BRAND_PRIMARY} fontSize="md">
-                        {room.price}₫
+                        ${room.price}
                         <Text as="span" fontSize="xs" fontWeight="400" color="gray.600">
-                          /đêm
+                          /night
                         </Text>
                       </Text>
                     </Flex>
                   </VStack>
                 </Box>
               </Box>
-            ))}
-          </HStack>
-        </Box>
-
-        {/* Popular Destinations Section */}
-        <Box mt={12}>
-          <Heading size="md" fontWeight="700" mb={4}>
-            Địa điểm phổ biến 🔥
-          </Heading>
-          <HStack spacing={4} overflowX="auto" pb={4}>
-            {['Hà Nội', 'Đà Nẵng', 'Hồ Chí Minh', 'Đà Lạt', 'Nha Trang'].map((city) => (
-              <Box
-                key={city}
-                minW="140px"
-                h="100px"
-                borderRadius="12px"
-                bg="gray.100"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                cursor="pointer"
-                transition="all 0.2s"
-                _hover={{ transform: 'scale(1.05)', boxShadow: 'lg' }}
-              >
-                <Text fontWeight="600" fontSize="md">
-                  {city}
-                </Text>
-              </Box>
-            ))}
-          </HStack>
+              ))}
+            </HStack>
+          )}
         </Box>
       </Container>
     </Box>

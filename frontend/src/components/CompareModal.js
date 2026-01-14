@@ -42,11 +42,11 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
 
     const criteria = Object.keys(rooms[0].normalized_values);
     const criteriaLabels = {
-      price: 'Giá cả',
-      comfort: 'Tiện nghi',
-      distance: 'Vị trí',
+      price: 'Price',
+      comfort: 'Amenities',
+      distance: 'Location',
       view: 'View',
-      cleanliness: 'Vệ sinh',
+      cleanliness: 'Cleanliness',
     };
 
     return criteria.map((criterion) => {
@@ -71,9 +71,9 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
       <ModalContent maxH="90vh">
         <ModalHeader>
           <VStack align="start" spacing={1}>
-            <Heading size="md">📊 So sánh chi tiết</Heading>
+            <Heading size="md">📊 Detailed Comparison</Heading>
             <Text fontSize="sm" fontWeight="normal" color="gray.600">
-              Phân tích các tiêu chí để đưa ra quyết định tốt nhất
+              Analyze criteria to make the best decision
             </Text>
           </VStack>
         </ModalHeader>
@@ -84,7 +84,7 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
             {/* Radar Chart */}
             <Box>
               <Heading size="sm" mb={4} color="gray.700">
-                Biểu đồ so sánh đa tiêu chí
+                Multi-Criteria Comparison Chart
               </Heading>
               <Box
                 bg="gray.50"
@@ -142,7 +142,7 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
             {/* Detailed Comparison Table */}
             <Box>
               <Heading size="sm" mb={4} color="gray.700">
-                So sánh chi tiết
+                Detailed Comparison
               </Heading>
               
               <SimpleGrid columns={rooms.length + 1} spacing={4}>
@@ -176,7 +176,7 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
 
                 {/* Price Row */}
                 <Box p={3} fontWeight="600" color="gray.700">
-                  💰 Giá/đêm
+                  💰 Price/night
                 </Box>
                 {rooms.map((room) => (
                   <Box
@@ -188,14 +188,14 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
                     borderColor="gray.200"
                   >
                     <Text fontWeight="700" color={BRAND_PRIMARY}>
-                      {room.price?.toLocaleString('vi-VN')}₫
+                      ${room.price?.toLocaleString('en-US')}
                     </Text>
                   </Box>
                 ))}
 
                 {/* Rating Row */}
                 <Box p={3} fontWeight="600" color="gray.700">
-                  ⭐ Đánh giá
+                  ⭐ Rating
                 </Box>
                 {rooms.map((room) => (
                   <Box
@@ -207,14 +207,14 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
                     borderColor="gray.200"
                   >
                     <Text fontWeight="600">
-                      {room.rating} ({room.reviews} đánh giá)
+                      {room.rating} ({room.reviews} reviews)
                     </Text>
                   </Box>
                 ))}
 
                 {/* Distance Row */}
                 <Box p={3} fontWeight="600" color="gray.700">
-                  📍 Khoảng cách
+                  📍 Distance
                 </Box>
                 {rooms.map((room) => (
                   <Box
@@ -225,13 +225,13 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
                     border="1px solid"
                     borderColor="gray.200"
                   >
-                    <Text fontWeight="600">{room.distance} km</Text>
+                    <Text fontWeight="600">{parseFloat(room.distance).toFixed(2)} km</Text>
                   </Box>
                 ))}
 
                 {/* Explanation Row */}
                 <Box p={3} fontWeight="600" color="gray.700">
-                  💡 Lý do gợi ý
+                  💡 Why Recommended
                 </Box>
                 {rooms.map((room) => (
                   <Box
@@ -261,13 +261,13 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
               <HStack spacing={2} mb={2}>
                 <Text fontSize="lg">💡</Text>
                 <Heading size="sm" color="blue.800">
-                  Phân tích đánh đổi (Trade-off)
+                  Trade-off Analysis
                 </Heading>
               </HStack>
               <Text fontSize="sm" color="blue.700">
-                Từ biểu đồ trên, bạn có thể thấy rõ điểm mạnh/yếu của từng phòng. 
-                Phòng có hình tròn đều nhất là lựa chọn cân bằng. Phòng có điểm cao nhất 
-                phù hợp với ưu tiên bạn đã chọn.
+                From the chart above, you can clearly see the strengths and weaknesses of each room. 
+                The room with the most balanced shape is a well-rounded choice. The room with the highest 
+                score best matches your selected priorities.
               </Text>
             </Box>
           </VStack>
@@ -275,7 +275,7 @@ const CompareModal = ({ isOpen, onClose, rooms }) => {
 
         <ModalFooter>
           <Button variant="ghost" onClick={onClose}>
-            Đóng
+            Close
           </Button>
         </ModalFooter>
       </ModalContent>

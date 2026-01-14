@@ -15,85 +15,90 @@ import {
   SliderTrack,
   SliderFilledTrack,
   SliderThumb,
+  SliderMark,
   Box,
-  Wrap,
-  WrapItem,
-  Tag,
-  TagLabel,
-  TagCloseButton,
-  Divider,
   Heading,
   Icon,
+  Badge,
 } from '@chakra-ui/react';
 import { FiDollarSign, FiHome, FiMapPin, FiEye, FiCheck } from 'react-icons/fi';
 import { useDSS } from '../contexts/DSSContext';
 import { BRAND_PRIMARY } from '../constants/colors';
 
-const PreferenceSlider = ({ icon, label, leftLabel, rightLabel, value, onChange }) => {
+const PreferenceSlider = ({ icon, label, description, value, onChange }) => {
   const getColor = () => {
-    if (value < 0.33) return 'green.500';
-    if (value < 0.67) return 'yellow.500';
-    return 'red.500';
+    if (value <= 3) return 'red.500';
+    if (value <= 6) return 'yellow.500';
+    return 'green.500';
+  };
+
+  const getLabel = () => {
+    if (value <= 3) return 'Low';
+    if (value <= 6) return 'Medium';
+    if (value <= 8) return 'High';
+    return 'Very High';
   };
 
   return (
     <Box>
-      <HStack mb={2}>
-        <Icon as={icon} color={BRAND_PRIMARY} />
-        <Text fontWeight="600" fontSize="sm">
-          {label}
-        </Text>
+      <HStack mb={3} justify="space-between">
+        <HStack>
+          <Icon as={icon} color={BRAND_PRIMARY} boxSize={5} />
+          <VStack align="start" spacing={0}>
+            <Text fontWeight="600" fontSize="sm">
+              {label}
+            </Text>
+            <Text fontSize="xs" color="gray.500">
+              {description}
+            </Text>
+          </VStack>
+        </HStack>
+        <Badge colorScheme={value <= 3 ? 'red' : value <= 6 ? 'yellow' : 'green'} fontSize="md" px={3} py={1}>
+          {value}/10
+        </Badge>
       </HStack>
       
-      <HStack spacing={4} align="center">
-        <Text fontSize="xs" color="gray.600" minW="80px">
-          {leftLabel}
-        </Text>
-        
+      <Box px={2}>
         <Slider
           value={value}
-          min={0}
-          max={1}
-          step={0.1}
+          min={1}
+          max={10}
+          step={1}
           onChange={onChange}
           colorScheme="orange"
         >
+          <SliderMark value={1} mt={2} ml={-2} fontSize="xs" color="gray.500">
+            1
+          </SliderMark>
+          <SliderMark value={5} mt={2} ml={-2} fontSize="xs" color="gray.500">
+            5
+          </SliderMark>
+          <SliderMark value={10} mt={2} ml={-2} fontSize="xs" color="gray.500">
+            10
+          </SliderMark>
           <SliderTrack bg="gray.200">
             <SliderFilledTrack bg={getColor()} />
           </SliderTrack>
-          <SliderThumb boxSize={5} bg={getColor()} />
+          <SliderThumb boxSize={6} bg={getColor()}>
+            <Text fontSize="xs" fontWeight="bold" color="white">
+              {value}
+            </Text>
+          </SliderThumb>
         </Slider>
-        
-        <Text fontSize="xs" color="gray.600" minW="80px" textAlign="right">
-          {rightLabel}
-        </Text>
-      </HStack>
+      </Box>
       
-      <Text fontSize="xs" color="gray.500" mt={1} textAlign="center">
-        {value < 0.33 ? 'Ít quan tâm' : value < 0.67 ? 'Quan tâm' : 'Rất quan tâm'}
+      <Text fontSize="xs" color="gray.600" mt={4} textAlign="center" fontWeight="500">
+        {getLabel()}
       </Text>
     </Box>
   );
 };
-
-const AMENITIES_LIST = [
-  { id: 'wifi', label: 'Wifi', icon: '📶' },
-  { id: 'pool', label: 'Bể bơi', icon: '🏊' },
-  { id: 'parking', label: 'Bãi đỗ xe', icon: '🚗' },
-  { id: 'kitchen', label: 'Bếp', icon: '🍳' },
-  { id: 'ac', label: 'Điều hòa', icon: '❄️' },
-  { id: 'balcony', label: 'Ban công', icon: '🏠' },
-  { id: 'tv', label: 'TV', icon: '📺' },
-  { id: 'washer', label: 'Máy giặt', icon: '🧺' },
-];
 
 const SmartFilterModal = ({ isOpen, onClose }) => {
   const {
     preferences,
     updatePreference,
     resetPreferences,
-    requiredAmenities,
-    toggleAmenity,
     fetchRecommendations,
   } = useDSS();
 
@@ -108,111 +113,55 @@ const SmartFilterModal = ({ isOpen, onClose }) => {
       <ModalContent>
         <ModalHeader>
           <VStack align="start" spacing={1}>
-            <Heading size="md">🎯 Bộ lọc thông minh</Heading>
+            <Heading size="md">🎯 Rate Importance Level</Heading>
             <Text fontSize="sm" fontWeight="normal" color="gray.600">
-              Điều chỉnh ưu tiên của bạn để nhận gợi ý phù hợp nhất
+              Score each criterion from 1-10 to get the best recommendations
             </Text>
           </VStack>
         </ModalHeader>
         <ModalCloseButton />
         
-        <ModalBody>
-          <VStack spacing={6} align="stretch">
-            {/* Preference Sliders */}
-            <Box>
-              <Heading size="sm" mb={4} color="gray.700">
-                Mức độ ưu tiên
-              </Heading>
-              
-              <VStack spacing={5}>
-                <PreferenceSlider
-                  icon={FiDollarSign}
-                  label="Giá cả"
-                  leftLabel="Chấp nhận đắt"
-                  rightLabel="Càng rẻ càng tốt"
-                  value={preferences.price_sensitivity}
-                  onChange={(val) => updatePreference('price_sensitivity', val)}
-                />
-                
-                <PreferenceSlider
-                  icon={FiHome}
-                  label="Tiện nghi"
-                  leftLabel="Cơ bản"
-                  rightLabel="Cao cấp"
-                  value={preferences.comfort_priority}
-                  onChange={(val) => updatePreference('comfort_priority', val)}
-                />
-                
-                <PreferenceSlider
-                  icon={FiMapPin}
-                  label="Vị trí"
-                  leftLabel="Chấp nhận xa"
-                  rightLabel="Phải gần"
-                  value={preferences.distance_tolerance}
-                  onChange={(val) => updatePreference('distance_tolerance', val)}
-                />
-                
-                <PreferenceSlider
-                  icon={FiEye}
-                  label="View & Cảnh quan"
-                  leftLabel="Không quan trọng"
-                  rightLabel="Phải đẹp"
-                  value={preferences.view_importance}
-                  onChange={(val) => updatePreference('view_importance', val)}
-                />
-                
-                <PreferenceSlider
-                  icon={FiCheck}
-                  label="Vệ sinh"
-                  leftLabel="Chấp nhận được"
-                  rightLabel="Rất sạch sẽ"
-                  value={preferences.cleanliness_priority}
-                  onChange={(val) => updatePreference('cleanliness_priority', val)}
-                />
-              </VStack>
-            </Box>
-
-            <Divider />
-
-            {/* Required Amenities */}
-            <Box>
-              <Heading size="sm" mb={3} color="gray.700">
-                Tiện ích bắt buộc
-              </Heading>
-              <Text fontSize="sm" color="gray.600" mb={3}>
-                Chọn các tiện ích mà bạn cần có
-              </Text>
-              
-              <Wrap spacing={2}>
-                {AMENITIES_LIST.map((amenity) => {
-                  const isSelected = requiredAmenities.includes(amenity.id);
-                  return (
-                    <WrapItem key={amenity.id}>
-                      <Tag
-                        size="lg"
-                        variant={isSelected ? 'solid' : 'outline'}
-                        bg={isSelected ? BRAND_PRIMARY : 'white'}
-                        color={isSelected ? 'white' : 'gray.700'}
-                        borderColor={isSelected ? BRAND_PRIMARY : 'gray.300'}
-                        cursor="pointer"
-                        onClick={() => toggleAmenity(amenity.id)}
-                        _hover={{
-                          bg: isSelected ? 'brand.600' : 'gray.50',
-                        }}
-                      >
-                        <TagLabel>
-                          <HStack spacing={1}>
-                            <Text>{amenity.icon}</Text>
-                            <Text>{amenity.label}</Text>
-                          </HStack>
-                        </TagLabel>
-                        {isSelected && <TagCloseButton />}
-                      </Tag>
-                    </WrapItem>
-                  );
-                })}
-              </Wrap>
-            </Box>
+        <ModalBody pb={6}>
+          <VStack spacing={8} align="stretch">
+            <PreferenceSlider
+              icon={FiDollarSign}
+              label="Price"
+              description="How much do you care about price?"
+              value={preferences.price_sensitivity}
+              onChange={(val) => updatePreference('price_sensitivity', val)}
+            />
+            
+            <PreferenceSlider
+              icon={FiHome}
+              label="Amenities"
+              description="Importance of room amenities"
+              value={preferences.comfort_priority}
+              onChange={(val) => updatePreference('comfort_priority', val)}
+            />
+            
+            <PreferenceSlider
+              icon={FiMapPin}
+              label="Location"
+              description="How close should the room be?"
+              value={preferences.distance_tolerance}
+              onChange={(val) => updatePreference('distance_tolerance', val)}
+            />
+            
+            <PreferenceSlider
+              icon={FiEye}
+              label="View & Scenery"
+              description="Importance of view and scenery"
+              value={preferences.view_importance}
+              onChange={(val) => updatePreference('view_importance', val)}
+            />
+            
+            <PreferenceSlider
+              icon={FiCheck}
+              label="Cleanliness"
+              description="Importance of cleanliness"
+              value={preferences.cleanliness_priority}
+              onChange={(val) => updatePreference('cleanliness_priority', val)}
+            />
           </VStack>
         </ModalBody>
 

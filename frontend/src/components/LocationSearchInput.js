@@ -4,7 +4,7 @@ import { FiMapPin } from 'react-icons/fi';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || '';
 
-const LocationSearchInput = ({ onSelectAddress, placeholder = 'Bạn muốn đi đâu?', initialValue = '' }) => {
+const LocationSearchInput = ({ onLocationSelect, onSelectAddress, placeholder = 'Where do you want to go?', initialValue = '' }) => {
   const [value, setValue] = useState(initialValue || '');
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -83,14 +83,36 @@ const LocationSearchInput = ({ onSelectAddress, placeholder = 'Bạn muốn đi 
   };
 
   const handleSelect = (suggestion) => {
-    const { place_name, center } = suggestion;
+    const { place_name, center, context } = suggestion;
     const [lng, lat] = center; // Mapbox returns [longitude, latitude]
 
     setValue(place_name);
     setSuggestions([]);
     setShowSuggestions(false);
 
-    // Call parent callback with address and coordinates
+    // Extract city from context if available
+    let city = '';
+    if (context) {
+      const placeContext = context.find(c => c.id.includes('place'));
+      if (placeContext) {
+        city = placeContext.text;
+      }
+    }
+
+    // Create location object
+    const location = {
+      description: place_name,
+      lat: lat,
+      lng: lng,
+      city: city || place_name.split(',')[0],
+    };
+
+    // Call parent callback with location object (new format)
+    if (onLocationSelect) {
+      onLocationSelect(location);
+    }
+    
+    // Legacy support for old format
     if (onSelectAddress) {
       onSelectAddress(place_name, lat, lng);
     }
